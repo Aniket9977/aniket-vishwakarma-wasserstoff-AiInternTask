@@ -2,6 +2,7 @@ from PyPDF2 import PdfReader
 from PIL import Image
 from ..config import OCR_ENGINE
 
+
 if OCR_ENGINE == "paddleocr":
     from paddleocr import PaddleOCR
     ocr_engine = PaddleOCR(use_angle_cls=True, lang='en')
