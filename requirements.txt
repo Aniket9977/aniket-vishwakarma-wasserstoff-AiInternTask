@@ -9,3 +9,5 @@ openai
 faiss-cpu
 python-dotenv
 python-multipart
+pandas 
+numpy
