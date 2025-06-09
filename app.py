@@ -20,7 +20,7 @@ if uploaded_file:
         st.error("Unsupported file type")
         st.stop()
 
-    st.success("✅ File processed. You can now ask questions!")
+    st.success(" File processed. You can now ask questions!")
 
     vs = build_vector_store(texts, sources)
 
@@ -28,7 +28,7 @@ if uploaded_file:
 
     if question:
         result = get_answer(vs, question)
-        st.markdown("### 💡 Answer")
+        st.markdown("###  Answer")
         st.write(result["answer"])
-        st.markdown("#### 📚 Sources")
+        st.markdown("#### Sources")
         st.write(result.get("sources", "No sources found."))
