@@ -2,12 +2,12 @@ import streamlit as st
 import requests
 
 st.set_page_config(page_title="Document Chatbot", layout="wide")
-st.title("📚 Document Research & Theme Chatbot")
+st.title(" Document Research & Theme Chatbot")
 
 API_URL = "http://localhost:8000"
 
 # --- Upload documents ---
-st.header("1️⃣ Upload Documents")
+st.header(" Upload Documents")
 
 uploaded_files = st.file_uploader("Upload PDF/Image/Text files", type=["pdf", "txt", "jpg", "jpeg", "png"], accept_multiple_files=True)
 
@@ -24,7 +24,7 @@ if st.button("Upload"):
         st.warning("Please upload at least one file.")
 
 # --- Ingest vectorstore ---
-st.header("2️⃣ Create Vectorstore")
+st.header(" Create Vectorstore")
 
 if st.button("Create Knowledge Base"):
     response = requests.post(f"{API_URL}/ingest/")
@@ -34,7 +34,7 @@ if st.button("Create Knowledge Base"):
         st.error("Error during ingestion!")
 
 # --- Ask a question ---
-st.header("3️⃣ Ask a Question")
+st.header(" Ask a Question")
 
 query = st.text_input("Ask something about the uploaded documents")
 
