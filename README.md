@@ -39,4 +39,13 @@ pip install -r requirements.txt
 ```
 
 
-### 3. Add
+### 3. Add api key
+
+
+``` bash 
+OPENAI_API_KEY=your-api-key-here
+
+
+```
+
+
