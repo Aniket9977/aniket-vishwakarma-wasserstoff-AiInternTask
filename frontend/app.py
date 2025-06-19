@@ -2,7 +2,7 @@ import streamlit as st
 import requests
 
 st.set_page_config(page_title="Document Chatbot", layout="wide")
-st.title(" Document Research & Theme Chatbot")
+st.title(" Document Research System")
 
 API_URL = "http://localhost:8000"
 
