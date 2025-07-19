@@ -1,10 +1,11 @@
 import streamlit as st
 import requests
+import os
 
 st.set_page_config(page_title="Document Chatbot", layout="wide")
 st.title(" Document Research System")
 
-API_URL = "http://localhost:8000"
+API_URL = os.getenv("API_URL", "http://localhost:8000")
 
 # --- Upload documents ---
 st.header(" Upload Documents")

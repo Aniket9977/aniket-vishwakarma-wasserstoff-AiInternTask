@@ -1,27 +1,28 @@
-# Use official lightweight Python image
+# Use official python image as base
 FROM python:3.10-slim
 
-# Set working directory inside container
+# Set working directory in the container
 WORKDIR /app
 
-# Install system dependencies required by some python packages and streamlit
-RUN apt-get update && \
-    apt-get install -y --no-install-recommends \
+# Install system dependencies needed for many python packages + Streamlit
+RUN apt-get update && apt-get install -y --no-install-recommends \
     build-essential \
     libgl1-mesa-glx \
     && rm -rf /var/lib/apt/lists/*
 
-# Copy only requirements first for better caching
+# Copy requirements.txt and install dependencies (adjust path if needed)
 COPY requirements.txt .
 
-# Install Python dependencies
 RUN pip install --no-cache-dir -r requirements.txt
 
-# Copy application code to container
+# Copy app files
 COPY . .
 
-# Expose Streamlit default port
+# Expose Streamlit port
 EXPOSE 8501
 
-# Run the Streamlit app (disable CORS and XSRF for deployment if backend is separate)
+# Set environment variable for the API URL — adjust 'fastapi' if using Docker Compose service name
+ENV API_URL=http://host.docker.internal:8000
+
+# Run Streamlit with CORS and XSRF disabled to avoid cross-origin issues
 CMD ["streamlit", "run", "app.py", "--server.port=8501", "--server.address=0.0.0.0", "--server.enableCORS=false", "--server.enableXsrfProtection=false"]
