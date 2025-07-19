@@ -21,6 +21,7 @@ def check_api_connection():
 
 # Sidebar with connection status
 with st.sidebar:
+    
     st.header("🔧 System Status")
     st.info(f"**Backend:** {API_URL}")
     
