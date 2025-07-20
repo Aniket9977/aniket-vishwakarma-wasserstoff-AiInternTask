@@ -1,299 +1,128 @@
-# main.py - Updated with real AI processing
+# app.py (Your Streamlit Cloud app)
+import streamlit as st
+import requests
 import os
-from pathlib import Path
-from datetime import datetime
-from typing import List, Dict, Any
-import asyncio
+from requests.exceptions import ConnectionError, RequestException
 
-from fastapi import FastAPI, File, UploadFile, HTTPException
-from fastapi.middleware.cors import CORSMiddleware
-from pydantic import BaseModel
-import uvicorn
+st.set_page_config(page_title="Document Chatbot", layout="wide")
+st.title("📄 Document Research System")
 
-# Document processing imports
-import PyPDF2
-from PIL import Image
-import pytesseract
-from docx import Document as DocxDocument
+# API Configuration - Point to your EC2 backend
+API_URL = os.getenv("API_URL", "http://3.111.35.114:8000")
 
-# AI/LangChain imports
-from langchain.text_splitter import RecursiveCharacterTextSplitter
-from langchain.embeddings import OpenAIEmbeddings
-from langchain.vectorstores import Chroma
-from langchain.chains import RetrievalQA
-from langchain.llms import OpenAI
-from langchain.schema import Document
-import openai
+# Connection check
+@st.cache_data(ttl=30)
+def check_api_connection():
+    try:
+        response = requests.get(f"{API_URL}/health", timeout=10)
+        return response.status_code == 200, response.json() if response.status_code == 200 else None
+    except Exception as e:
+        return False, str(e)
 
-# Load environment variables
-from dotenv import load_dotenv
-load_dotenv()
+# Sidebar with connection status
+with st.sidebar:
+    
+    st.header("🔧 System Status")
+    st.info(f"**Backend:** {API_URL}")
+    
+    is_connected, api_info = check_api_connection()
+    if is_connected:
+        st.success("🟢 Backend Connected")
+        if api_info:
+            st.json(api_info)
+    else:
+        st.error("🔴 Backend Disconnected")
+        st.error(f"Error: {api_info}")
+    
+    if st.button("🔄 Refresh"):
+        st.cache_data.clear()
+        st.rerun()
 
-# Initialize FastAPI
-app = FastAPI(title="Document Research API")
+# Main app logic
+if not is_connected:
+    st.error("""
+    🚨 **Backend Service Unavailable**
+    
+    Cannot connect to the backend API. Please:
+    1. Check if the backend service is running on EC2
+    2. Verify the API URL is correct
+    3. Check AWS security group settings
+    """)
+    st.stop()
 
-# CORS configuration
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=["*"],
-    allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
+# --- Upload documents ---
+st.header("📁 Upload Documents")
+
+uploaded_files = st.file_uploader(
+    "Upload PDF/Image/Text files", 
+    type=["pdf", "txt", "jpg", "jpeg", "png"], 
+    accept_multiple_files=True
 )
 
-# Configuration
-UPLOAD_DIR = Path("uploads")
-UPLOAD_DIR.mkdir(exist_ok=True)
-
-# Pydantic models
-class QueryRequest(BaseModel):
-    question: str
-
-# Global variables
-uploaded_files = []
-processed_documents = []
-vectorstore = None
-qa_chain = None
-
-# Document processing functions
-def extract_text_from_pdf(file_path: str) -> str:
-    """Extract text from PDF file"""
-    try:
-        with open(file_path, 'rb') as file:
-            pdf_reader = PyPDF2.PdfReader(file)
-            text = ""
-            for page in pdf_reader.pages:
-                text += page.extract_text() + "\n"
-        return text.strip()
-    except Exception as e:
-        print(f"Error extracting PDF text: {e}")
-        return ""
-
-def extract_text_from_docx(file_path: str) -> str:
-    """Extract text from DOCX file"""
-    try:
-        doc = DocxDocument(file_path)
-        text = ""
-        for paragraph in doc.paragraphs:
-            text += paragraph.text + "\n"
-        return text.strip()
-    except Exception as e:
-        print(f"Error extracting DOCX text: {e}")
-        return ""
-
-def extract_text_from_image(file_path: str) -> str:
-    """Extract text from image using OCR"""
-    try:
-        image = Image.open(file_path)
-        text = pytesseract.image_to_string(image)
-        return text.strip()
-    except Exception as e:
-        print(f"Error extracting image text: {e}")
-        return ""
-
-def extract_text_from_txt(file_path: str) -> str:
-    """Extract text from text file"""
-    try:
-        with open(file_path, 'r', encoding='utf-8') as file:
-            return file.read().strip()
-    except Exception as e:
-        print(f"Error reading text file: {e}")
-        return ""
-
-def process_document(file_path: str, filename: str) -> str:
-    """Process document and extract text based on file type"""
-    file_ext = Path(filename).suffix.lower()
-    
-    if file_ext == '.pdf':
-        return extract_text_from_pdf(file_path)
-    elif file_ext == '.docx':
-        return extract_text_from_docx(file_path)
-    elif file_ext in ['.jpg', '.jpeg', '.png']:
-        return extract_text_from_image(file_path)
-    elif file_ext == '.txt':
-        return extract_text_from_txt(file_path)
-    else:
-        return ""
-
-# API Routes
-@app.get("/")
-@app.get("/health")
-async def health_check():
-    return {
-        "status": "healthy",
-        "message": "Document Research API is running",
-        "timestamp": datetime.now().isoformat(),
-        "ai_enabled": bool(os.getenv("OPENAI_API_KEY"))
-    }
-
-@app.post("/upload/")
-async def upload_file(file: UploadFile = File(...)):
-    try:
-        if not file.filename:
-            raise HTTPException(status_code=400, detail="No file provided")
+if st.button("Upload"):
+    if uploaded_files:
+        progress_bar = st.progress(0)
+        success_count = 0
         
-        # Save file
-        file_path = UPLOAD_DIR / file.filename
-        with open(file_path, "wb") as buffer:
-            content = await file.read()
-            buffer.write(content)
-        
-        # Track uploaded file
-        uploaded_files.append({
-            "filename": file.filename,
-            "path": str(file_path),
-            "timestamp": datetime.now().isoformat()
-        })
-        
-        return {
-            "message": f"File {file.filename} uploaded successfully",
-            "total_files": len(uploaded_files)
-        }
-        
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Upload failed: {str(e)}")
-
-@app.post("/ingest/")
-async def ingest_documents():
-    global vectorstore, qa_chain, processed_documents
-    
-    try:
-        if not uploaded_files:
-            raise HTTPException(status_code=400, detail="No files uploaded")
-        
-        if not os.getenv("OPENAI_API_KEY"):
-            raise HTTPException(status_code=500, detail="OpenAI API key not configured")
-        
-        # Process each uploaded file
-        processed_documents = []
-        all_texts = []
-        
-        for file_info in uploaded_files:
-            file_path = file_info["path"]
-            filename = file_info["filename"]
-            
-            # Extract text from document
-            text_content = process_document(file_path, filename)
-            
-            if text_content:
-                processed_documents.append({
-                    "filename": filename,
-                    "content": text_content,
-                    "timestamp": file_info["timestamp"]
-                })
+        for i, file in enumerate(uploaded_files):
+            try:
+                files = {"file": (file.name, file.getvalue())}
+                response = requests.post(f"{API_URL}/upload/", files=files, timeout=60)
                 
-                # Create LangChain document
-                doc = Document(
-                    page_content=text_content,
-                    metadata={"source": filename, "timestamp": file_info["timestamp"]}
-                )
-                all_texts.append(doc)
+                if response.status_code == 200:
+                    st.success(f"✅ Uploaded: {file.name}")
+                    success_count += 1
+                else:
+                    st.error(f"❌ Failed to upload {file.name}")
+                    
+            except ConnectionError:
+                st.error("❌ Connection error. Backend not accessible.")
+                break
+            except Exception as e:
+                st.error(f"❌ Error: {str(e)}")
+                
+            progress_bar.progress((i + 1) / len(uploaded_files))
         
-        if not all_texts:
-            raise HTTPException(status_code=400, detail="No text content extracted from documents")
-        
-        # Split documents into chunks
-        text_splitter = RecursiveCharacterTextSplitter(
-            chunk_size=1000,
-            chunk_overlap=200
-        )
-        splits = text_splitter.split_documents(all_texts)
-        
-        # Create embeddings and vector store
-        embeddings = OpenAIEmbeddings()
-        vectorstore = Chroma.from_documents(splits, embeddings)
-        
-        # Create QA chain
-        qa_chain = RetrievalQA.from_chain_type(
-            llm=OpenAI(temperature=0),
-            chain_type="stuff",
-            retriever=vectorstore.as_retriever(search_kwargs={"k": 3}),
-            return_source_documents=True
-        )
-        
-        return {
-            "message": "Documents processed successfully with AI",
-            "processed_files": len(processed_documents),
-            "total_chunks": len(splits),
-            "status": "ready"
-        }
-        
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Processing failed: {str(e)}")
+        st.info(f"Upload complete: {success_count}/{len(uploaded_files)} files")
+    else:
+        st.warning("⚠️ Please upload at least one file.")
 
-@app.post("/query/")
-async def query_documents(request: QueryRequest):
+# --- Ingest vectorstore ---
+st.header("🔧 Create Vectorstore")
+
+if st.button("Create Knowledge Base"):
     try:
-        if not qa_chain:
-            raise HTTPException(status_code=400, detail="Documents not processed yet. Please ingest documents first.")
-        
-        if not request.question.strip():
-            raise HTTPException(status_code=400, detail="Question cannot be empty")
-        
-        # Get AI-powered answer
-        result = qa_chain({"query": request.question})
-        
-        # Extract sources
-        sources = []
-        if "source_documents" in result:
-            sources = [doc.metadata.get("source", "Unknown") for doc in result["source_documents"]]
-        
-        return {
-            "answer": result["result"],
-            "question": request.question,
-            "sources": list(set(sources)),  # Remove duplicates
-            "timestamp": datetime.now().isoformat()
-        }
-        
+        with st.spinner("Creating knowledge base..."):
+            response = requests.post(f"{API_URL}/ingest/", timeout=120)
+            if response.status_code == 200:
+                st.success("✅ Vectorstore created successfully!")
+            else:
+                st.error("❌ Error during ingestion!")
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Query failed: {str(e)}")
+        st.error(f"❌ Error: {str(e)}")
 
-@app.get("/status/")
-async def get_status():
-    return {
-        "uploaded_files": len(uploaded_files),
-        "processed_documents": len(processed_documents),
-        "vectorstore_ready": vectorstore is not None,
-        "qa_chain_ready": qa_chain is not None,
-        "ai_configured": bool(os.getenv("OPENAI_API_KEY"))
-    }
+# --- Ask a question ---
+st.header("🔍 Ask a Question")
 
-@app.get("/documents/")
-async def list_documents():
-    """List processed documents with preview"""
-    return {
-        "documents": [
-            {
-                "filename": doc["filename"],
-                "preview": doc["content"][:200] + "..." if len(doc["content"]) > 200 else doc["content"],
-                "length": len(doc["content"]),
-                "timestamp": doc["timestamp"]
-            }
-            for doc in processed_documents
-        ]
-    }
+query = st.text_input("Ask something about the uploaded documents")
 
-@app.delete("/clear/")
-async def clear_data():
-    global vectorstore, qa_chain, uploaded_files, processed_documents
-    
-    try:
-        # Clear files
-        for file_info in uploaded_files:
-            file_path = Path(file_info["path"])
-            if file_path.exists():
-                file_path.unlink()
-        
-        # Reset all variables
-        uploaded_files = []
-        processed_documents = []
-        vectorstore = None
-        qa_chain = None
-        
-        return {"message": "All data cleared successfully"}
-        
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Clear failed: {str(e)}")
-
-if __name__ == "__main__":
-    uvicorn.run("main:app", host="0.0.0.0", port=8000, reload=True)
+if st.button("Get Answer"):
+    if query:
+        try:
+            with st.spinner("Getting answer..."):
+                response = requests.post(f"{API_URL}/query/", json={"question": query}, timeout=60)
+                if response.status_code == 200:
+                    result = response.json()
+                    st.markdown("### 💡 Answer")
+                    st.write(result["answer"])
+                    
+                    if "sources" in result:
+                        with st.expander("📚 Sources"):
+                            for source in result["sources"]:
+                                st.write(f"• {source}")
+                else:
+                    st.error("❌ Failed to get an answer.")
+        except Exception as e:
+            st.error(f"❌ Error: {str(e)}")
+    else:
+        st.warning("⚠️ Please enter a question.")
