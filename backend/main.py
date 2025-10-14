@@ -5,12 +5,12 @@ import os
 from requests.exceptions import ConnectionError, RequestException
 
 st.set_page_config(page_title="Document Chatbot", layout="wide")
-st.title("📄 Document Research System")
+st.title("Document Research System")
 
-# API Configuration - Point to your EC2 backend
+
 API_URL = os.getenv("API_URL", "http://3.111.35.114:8000")
 
-# Connection check
+
 @st.cache_data(ttl=30)
 def check_api_connection():
     try:
@@ -22,19 +22,19 @@ def check_api_connection():
 # Sidebar with connection status
 with st.sidebar:
     
-    st.header("🔧 System Status")
+    st.header(" System Status")
     st.info(f"**Backend:** {API_URL}")
     
     is_connected, api_info = check_api_connection()
     if is_connected:
-        st.success("🟢 Backend Connected")
+        st.success(" Backend Connected")
         if api_info:
             st.json(api_info)
     else:
-        st.error("🔴 Backend Disconnected")
+        st.error("Backend Disconnected")
         st.error(f"Error: {api_info}")
     
-    if st.button("🔄 Refresh"):
+    if st.button(" Refresh"):
         st.cache_data.clear()
         st.rerun()
 
@@ -51,7 +51,7 @@ if not is_connected:
     st.stop()
 
 # --- Upload documents ---
-st.header("📁 Upload Documents")
+st.header("Upload Documents")
 
 uploaded_files = st.file_uploader(
     "Upload PDF/Image/Text files", 
@@ -70,16 +70,16 @@ if st.button("Upload"):
                 response = requests.post(f"{API_URL}/upload/", files=files, timeout=60)
                 
                 if response.status_code == 200:
-                    st.success(f"✅ Uploaded: {file.name}")
+                    st.success(f" Uploaded: {file.name}")
                     success_count += 1
                 else:
-                    st.error(f"❌ Failed to upload {file.name}")
+                    st.error(f" Failed to upload {file.name}")
                     
             except ConnectionError:
-                st.error("❌ Connection error. Backend not accessible.")
+                st.error(" Connection error. Backend not accessible.")
                 break
             except Exception as e:
-                st.error(f"❌ Error: {str(e)}")
+                st.error(f" Error: {str(e)}")
                 
             progress_bar.progress((i + 1) / len(uploaded_files))
         
@@ -95,11 +95,11 @@ if st.button("Create Knowledge Base"):
         with st.spinner("Creating knowledge base..."):
             response = requests.post(f"{API_URL}/ingest/", timeout=120)
             if response.status_code == 200:
-                st.success("✅ Vectorstore created successfully!")
+                st.success(" Vectorstore created successfully!")
             else:
-                st.error("❌ Error during ingestion!")
+                st.error(" Error during ingestion!")
     except Exception as e:
-        st.error(f"❌ Error: {str(e)}")
+        st.error(f" Error: {str(e)}")
 
 # --- Ask a question ---
 st.header("🔍 Ask a Question")
@@ -121,8 +121,8 @@ if st.button("Get Answer"):
                             for source in result["sources"]:
                                 st.write(f"• {source}")
                 else:
-                    st.error("❌ Failed to get an answer.")
+                    st.error(" Failed to get an answer.")
         except Exception as e:
-            st.error(f"❌ Error: {str(e)}")
+            st.error(f" Error: {str(e)}")
     else:
-        st.warning("⚠️ Please enter a question.")
+        st.warning(" Please enter a question.")
