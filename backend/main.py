@@ -41,7 +41,7 @@ with st.sidebar:
 # Main app logic
 if not is_connected:
     st.error("""
-    🚨 **Backend Service Unavailable**
+     **Backend Service Unavailable**
     
     Cannot connect to the backend API. Please:
     1. Check if the backend service is running on EC2
@@ -85,10 +85,10 @@ if st.button("Upload"):
         
         st.info(f"Upload complete: {success_count}/{len(uploaded_files)} files")
     else:
-        st.warning("⚠️ Please upload at least one file.")
+        st.warning(" Please upload at least one file.")
 
 # --- Ingest vectorstore ---
-st.header("🔧 Create Vectorstore")
+st.header("Create Vectorstore")
 
 if st.button("Create Knowledge Base"):
     try:
@@ -102,7 +102,7 @@ if st.button("Create Knowledge Base"):
         st.error(f" Error: {str(e)}")
 
 # --- Ask a question ---
-st.header("🔍 Ask a Question")
+st.header(" Ask a Question")
 
 query = st.text_input("Ask something about the uploaded documents")
 
@@ -113,7 +113,7 @@ if st.button("Get Answer"):
                 response = requests.post(f"{API_URL}/query/", json={"question": query}, timeout=60)
                 if response.status_code == 200:
                     result = response.json()
-                    st.markdown("### 💡 Answer")
+                    st.markdown("###  Answer")
                     st.write(result["answer"])
                     
                     if "sources" in result:

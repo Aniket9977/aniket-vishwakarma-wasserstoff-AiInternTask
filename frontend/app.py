@@ -5,7 +5,7 @@ import os
 from requests.exceptions import ConnectionError, RequestException
 
 st.set_page_config(page_title="Document Chatbot", layout="wide")
-st.title("📄 Document Research System")
+st.title(" Document Research System")
 
 # API Configuration - Point to your EC2 backend
 API_URL = os.getenv("API_URL", "http://3.111.35.114:8000")
@@ -26,14 +26,14 @@ with st.sidebar:
     
     is_connected, api_info = check_api_connection()
     if is_connected:
-        st.success("🟢 Backend Connected")
+        st.success(" Backend Connected")
         if api_info:
             st.json(api_info)
     else:
-        st.error("🔴 Backend Disconnected")
+        st.error(" Backend Disconnected")
         st.error(f"Error: {api_info}")
     
-    if st.button("🔄 Refresh"):
+    if st.button(" Refresh"):
         st.cache_data.clear()
         st.rerun()
 
@@ -50,7 +50,7 @@ if not is_connected:
     st.stop()
 
 # --- Upload documents ---
-st.header("📁 Upload Documents")
+st.header("Upload Documents")
 
 uploaded_files = st.file_uploader(
     "Upload PDF/Image/Text files", 
@@ -69,30 +69,30 @@ if st.button("Upload"):
                 response = requests.post(f"{API_URL}/upload/", files=files, timeout=60)
                 
                 if response.status_code == 200:
-                    st.success(f"✅ Uploaded: {file.name}")
+                    st.success(f" Uploaded: {file.name}")
                     success_count += 1
                 else:
                     # Show detailed upload error
                     try:
                         error_detail = response.json()
-                        st.error(f"❌ Upload failed for {file.name}: {error_detail.get('detail', 'Unknown error')}")
+                        st.error(f" Upload failed for {file.name}: {error_detail.get('detail', 'Unknown error')}")
                     except:
-                        st.error(f"❌ Upload failed for {file.name}: Status {response.status_code}")
+                        st.error(f" Upload failed for {file.name}: Status {response.status_code}")
                     
             except ConnectionError:
-                st.error("❌ Connection error. Backend not accessible.")
+                st.error(" Connection error. Backend not accessible.")
                 break
             except Exception as e:
-                st.error(f"❌ Error uploading {file.name}: {str(e)}")
+                st.error(f" Error uploading {file.name}: {str(e)}")
                 
             progress_bar.progress((i + 1) / len(uploaded_files))
         
         st.info(f"Upload complete: {success_count}/{len(uploaded_files)} files")
     else:
-        st.warning("⚠️ Please upload at least one file.")
+        st.warning(" Please upload at least one file.")
 
 # --- Ingest vectorstore ---
-st.header("🔧 Create Knowledge Base")
+st.header(" Create Knowledge Base")
 
 if st.button("Create Knowledge Base"):
     try:
@@ -100,13 +100,13 @@ if st.button("Create Knowledge Base"):
             response = requests.post(f"{API_URL}/ingest/", timeout=120)
             if response.status_code == 200:
                 result = response.json()
-                st.success("✅ Vectorstore created successfully!")
+                st.success(" Vectorstore created successfully!")
                 
                 # Show details if available
                 if "processed_files" in result:
                     st.info(f"Processed {result['processed_files']} files")
                 if "details" in result:
-                    with st.expander("📋 Processing Details"):
+                    with st.expander(" Processing Details"):
                         for detail in result["details"]:
                             st.write(f"• **{detail['filename']}**: {detail['content_length']} characters")
             else:
@@ -114,18 +114,18 @@ if st.button("Create Knowledge Base"):
                 try:
                     error_detail = response.json()
                     if "detail" in error_detail:
-                        st.error(f"❌ Error during ingestion: {error_detail['detail']}")
+                        st.error(f" Error during ingestion: {error_detail['detail']}")
                     else:
-                        st.error(f"❌ Error during ingestion: {error_detail}")
+                        st.error(f" Error during ingestion: {error_detail}")
                 except:
-                    st.error(f"❌ Error during ingestion! Status code: {response.status_code}")
+                    st.error(f" Error during ingestion! Status code: {response.status_code}")
                     st.error(f"Response: {response.text}")
                 
     except Exception as e:
-        st.error(f"❌ Connection Error: {str(e)}")
+        st.error(f" Connection Error: {str(e)}")
 
 # --- Ask a question ---
-st.header("🔍 Ask a Question")
+st.header(" Ask a Question")
 
 query = st.text_input("Ask something about the uploaded documents")
 
@@ -136,11 +136,11 @@ if st.button("Get Answer"):
                 response = requests.post(f"{API_URL}/query/", json={"question": query}, timeout=60)
                 if response.status_code == 200:
                     result = response.json()
-                    st.markdown("### 💡 Answer")
+                    st.markdown("###  Answer")
                     st.write(result["answer"])
                     
                     if "sources" in result and result["sources"]:
-                        with st.expander("📚 Sources"):
+                        with st.expander(" Sources"):
                             for source in result["sources"]:
                                 st.write(f"• {source}")
                     
@@ -152,19 +152,19 @@ if st.button("Get Answer"):
                     # Show detailed error
                     try:
                         error_detail = response.json()
-                        st.error(f"❌ Query failed: {error_detail.get('detail', 'Unknown error')}")
+                        st.error(f" Query failed: {error_detail.get('detail', 'Unknown error')}")
                     except:
-                        st.error(f"❌ Query failed! Status: {response.status_code}")
+                        st.error(f" Query failed! Status: {response.status_code}")
                         
         except Exception as e:
-            st.error(f"❌ Connection Error: {str(e)}")
+            st.error(f" Connection Error: {str(e)}")
     else:
-        st.warning("⚠️ Please enter a question.")
+        st.warning(" Please enter a question.")
 
 # Add debug section in sidebar
 with st.sidebar:
     st.divider()
-    if st.button("🔍 Debug Info"):
+    if st.button(" Debug Info"):
         try:
             status_response = requests.get(f"{API_URL}/status/", timeout=10)
             if status_response.status_code == 200:
